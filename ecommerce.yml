@@ -1,7 +1,7 @@
 # token setting
 token:
   expiration_time: 86400000 # one day
-  secret: my_token
+  secret: my_token_changed
 
 gateway:
   ip: 192.168.2.220
