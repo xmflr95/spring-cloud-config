@@ -1,4 +1,4 @@
-# MSA
+# MSA(MicroService Architecture)
 
 #### Eureka Random 설정
 
