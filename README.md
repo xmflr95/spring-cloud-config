@@ -155,4 +155,108 @@ Encryption & Decryption
 
 encrypt.key => 대칭키
 
+##### Asymmetric Encryption
+  * Public, Private Key 생성 -> JDK keytool 이용
+  * $mkdir ${user.home}/Desktop/Work/keystore <- 키스토어 폴더 생성
+  * $keytool -genkeypair -alias apiEncryptionKey -keyalg RSA \
+  -dname "CN=Kenneth Lee, OU=API Development, O=joneconsulting.co.kr, L=Seoul, C=KR" \ 
+  -keypass "1q2w3e4r" -keystore apiEncryptionKey.jks -storepass "1q2w3e4r"
 
+일반적으로 암호화 할때는 Private Key 사용, 복호화시에는 Public Key 사용
+```yaml
+  # window에서 location 설정 시
+  key-store:
+    location: file:///${user.home}/Desktop/Work/keystore/apiEncryptionKey.jks
+  # 위 처럼 file:/// slash를 3개 넣어줘야함(윈도우는 드라이브를 명시하는 부분이 있기 떄문)
+```  
+* keytool 명령어 예시
+```bash
+keytool -genkeypair -alias apiEncryptionKey -keyalg RSA -dname "CN=Kenneth Lee, OU=API Development, O=joneconsulting.co.kr, L=Seoul, C=KR" -keypass "test1234" -keystore apiEncryption.jks -storepass "test1234"
+```  
+* keytool: Key 정보 확인
+```bash
+keytool -list -keystore apiEncryption.jks -v (-v 옵션을 제거하면 짧은 정보만 표시)
+```
+* 키 export/import  
+```bash
+--export
+keytool -export -alias apiEncryptionKey -keystore apiEncryptionKey.jks -rfc -file trustServer.cer
+--import (Public Key 생성/서명 가능)
+keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
+```  
+## 마이크로서비스(MSA)간 통신
+* **Communication Types**
+  * Synchronous HTTP communication
+  * Asynchronous communication over AMQP(비동기방식)
+
+* **Feign Web Service Client**
+  * FeignClient -> HTTP Client
+    - REST Call을 추상화 한 Spring Cloud Netflix Library
+  * 사용방법
+    - 호출하려는 HTTP Endpoint에 대한 Interface를 생성
+    - @FeignClient 선언
+  * Load Banlanced 지원
+
+* Feign Client 적용
+  * Spring Cloud Netflix 라이브러리 추가
+  * @FeignClient Interface 생성
+  * UserServiceImpl.java에서 Feign Client 사용
+ 
+### Feign Client
+* 장점
+  * 코드의 양이 적음
+  * 직관성이 높음
+* 단점
+  * 다른 측면에서는 다른 서비스 제작자가 아닌 경우에는 어떤 서비스인지
+  헷갈릴 가능성이 높음
+
+* Feign Client 사용 시 발생한 로그 추적
+* Feign 예외 처리
+  * FeignException 처리
+  * ErrorDecoder 구현
+
+
+* **Multiple Orders Service**
+ 다중 클라이언트 요청이 들어왔을 경우의 처리
+  * Order Service 2개 기동
+    * Users의 요청 분산 처리
+    * Orders 데이터도 분산 저장 -> 동기화 문제!
+    * 하나의 Database를 사용(아주 간단한 해결법, Monolthic), 트랜잭션 관리가 매우 필요함
+    * Database간의 동기화 -> 메시지 큐잉 서버를 이용하여 동기화
+    * Kafka Connector + DB (복합 처리)
+      * 서로 다른 인스턴스 데이터를 메시지 큐에 저장(미들웨어)
+      * 그 데이터를 하나의 단일 DB에 저장
+      * 이후 동일한 각각의 서비스에서 DB에 있는 데이터를 가져가 사요
+
+## Apache Kafka
+> 오픈 소스 메시지 브로커
+  실시간 데이터 피드를 관리하기 위해 통일된 높은 처리량(대용량), 낮은 지연 시간을 지닌 플랫폼 제공  
+
+* 기존 서비스들의 구성
+  * End-to-End 연결 방식의 아키텍처
+  * 데이터 연동의 복잡성 증가 (HW, 운영체제, 장애 등)
+  * 서로 다른 데이터 Pipeline 연결 구조
+  * 확장이 어려운 구조
+
+* 카프카의 탄생 이유
+  * 모든 시스템으로 데이터를 실시간으로 전송하여 처리할 수 있는 시스템
+  * 데이터가 많아지더라도 확장이 용이한 시스템
+
+* 카프카의 특징
+  * Producer/Consumer 분리
+  * 메시지를 여러 Consumer에게 허용
+  * 높은 처리량을 위한 메시지 최적화
+  * Scale-out 가능
+  * Eco-system
+
+  ##### Kafka Broker
+  * 실행 된 Kafka 애플리케이션 서버
+  * 3대 이상의 Broker Cluster 구성
+  * Zookeeper 연동
+    * 역할: 메타데이터(Broker ID, Controller ID 등) 저장
+    * Controller 정보 저장
+  * n개 Broker 중 1대는 Controller 기능 수행
+    * Controller 역할 
+      * 각 Broker에게 담당 파티션 할당 수행
+      * Broker 정상 동작 모니터링 관리
+    
