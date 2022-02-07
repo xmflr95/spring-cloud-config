@@ -239,8 +239,8 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
   * 확장이 어려운 구조
 
 * 카프카의 탄생 이유
-  * 모든 시스템으로 데이터를 실시간으로 전송하여 처리할 수 있는 시스템
-  * 데이터가 많아지더라도 확장이 용이한 시스템
+  * **모든 시스템으로 데이터를 실시간으로 전송하여 처리할 수 있는 시스템**
+  * **데이터가 많아지더라도 확장이 용이한 시스템**
 
 * 카프카의 특징
   * Producer/Consumer 분리
@@ -259,4 +259,48 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
     * Controller 역할 
       * 각 Broker에게 담당 파티션 할당 수행
       * Broker 정상 동작 모니터링 관리
-    
+  
+### Ecosystem (1)-Kafka Client
+  * Kafka와 데이터를 주고 받기위해 사용하는 Java Library
+    - [https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients]
+  * Producer, Consumer, Admin, Stream 등 Kafka 관련 API 제공
+  * 다양한 3rd party library 존재: C/C++, Node.js, Python, .NET 등
+    - [https://cwiki.apache.org/confluence/display/KAFKA/Clients]
+
+(Kafka Cluster) <<--->> (Kafka-client Application)
+
+##### Kafka 서버 기동
+  * Zookeeper 및 Kafka 서버 구동
+    - $KAFKA_HOME/bin/zookeeper-server-start.sh $KAFKA_HOME/config/zookeeper.properties
+    - $KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
+    - **windows**
+    - .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+    - .\bin\windows\kafka-server-start.bat .\config\server.properties
+  * Topic 생성
+    - $KAFKA_HOME/bin/kafka-topics.sh --create --topic quickstart-events --bootstrap-server localhost:9092 \ --partitions 1
+  * Topic 목록 확인
+    - $KAFKA_HOME/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+  * Topic 정보 확인
+    - $KAFKA_HOME/bin/kafka-topics.sh --describe --topic quickstart-events --bootstrap-server localhost:9092
+  * 메시지 생산
+    - $KAFKA_HOME/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic quickstart-events
+  * 메시지 소비
+    - $KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic quickstart-events \
+
+### Ecosystem (2)-Kafka Connect
+  * Kafka Connect를 통해 Data를 Import/Export 가능
+  * 코드 없이 Configuration으로 데이터를 이동
+  * Standalone mode, Distribution mode 지원
+    - RESTful API 통해 지원
+    - Stream 또는 Batch 형태로 데이터 전송 가능
+    - 커스텀 Connector를 통한 다양하 Plugin 제공(File, S3, Hive, MySQL, etc...)
+ * 데이터를 가져오는 쪽 : Connect Source
+ * 데이터는 보내는 쪽 : Connect Sink
+(Source System:Hive,jdbc)->(Kafka Connect Source)->(Kafka Cluster)->(Kafka Connect Sink:export)->(Target System:S3...)
+
+###### MariaDB 설치
+  * pom.xml mariaDB dependency 추가 후 적용 -> connection 오류가 날 경우 mysql connector를 dependency에 추가시키면 해결(mariadb 버전에 맞는 커넥터 버전 사용)
+
+### Kafka Connect 설치
+  * [https://confluent.io]
+  * .\bin\windows\connect-distributed.bat .\etc\kafka\connect-distributed.properties
