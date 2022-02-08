@@ -304,3 +304,23 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
 ### Kafka Connect 설치
   * [https://confluent.io]
   * .\bin\windows\connect-distributed.bat .\etc\kafka\connect-distributed.properties
+
+### 데이터 동기화 (1) - Orders -> Catalogs
+  * Order Service에 요청 된 주문의 수량 정보를 Catalogs Service에 반영
+  * Order Service에서 Kafka Topic으로 메시지 전송 -> Producer
+  * Catalogs Service에서 Kafka Topic에 전송 된 메시지 취득 -> Consumer
+
+##### Multiple Orders Service에서의 데이터 동기화
+  * Orders Service 2개 기동
+    - Users의 요청 분산 처리
+    - Orders 데이터도 분산 저장 -> **동기화 문제**
+
+### 데이터 통기화 (2) - Multiple Order Service
+  * Order Service에 요청 된 주문 정보를 DB가 아니라 Kafka Topic으로 전송
+  * Kafka Topic에 설정 된 Kafka Sink Connect를 사용해 단일 DB에 저장 -> 데이터 동기화
+  * tip) 단일 DB 데이터 컬럼에 어느 인스턴스에서 발생한 것인지 보여주도록 기록하면 좀 더 풍부한 DATA를 가진 DB 구성 가능
+
+# 장애 처리와 Microservice 분산 추적
+
+> Microservice 통신 시 연쇄 오류 발생의 경우
+다른 마이크로서비스와 통신을 하다 한 곳이라도 오류가 발생한 경우
