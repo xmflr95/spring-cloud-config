@@ -322,5 +322,149 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
 
 # 장애 처리와 Microservice 분산 추적
 
-> Microservice 통신 시 연쇄 오류 발생의 경우
-다른 마이크로서비스와 통신을 하다 한 곳이라도 오류가 발생한 경우
+> Microservice 통신 시 연쇄 오류 발생의 경우  
+  - 다른 마이크로서비스와 통신을 하다 한 곳이라도 오류가 발생한 경우
+  - 오류가 생긴 마이크로서비스로의 통신(요청) 진행을 막아야함
+  - Feign Client 측에서는 에러 발생시 임시로 보여줄 데이터(디폴트값) 혹은 우회할 수 있는 데이터를 보여줘야한다.
+  - 데이터가 없지만 오류는 보이지 않도록 처리한다.
+
+### CircuitBreaker
+  - [https://martinfowler.com/bliki/CircuitBreaker.html]
+  - 장애가 발생하는 서비스에 반복적인 호출이 되지 못하게 차단
+  - 특정 서비스가 정상적으로 동작하지 않을 경우 다른 기능으로 대체 수행 -> 장애 회피
+
+##### Spring Cloud Betflix Hystrix
+  * 현재는 개발은 하지않고 유지보수만 진행 중 - Resilience4j
+  * Hystrix Dashboard/Turbine - Micrometer + Monitoring System
+  
+### resilience4j
+  ```xml
+  <dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+  </dependency>
+  ```
+
+### Microservice 분산 추적
+  * Zipkin
+    - [https://zipkin.io/]
+    - Twitter에서 사용하는 분산 환경의 Timing 데이터 수집, 추적 시스템(오픈소스)
+    - Google Drapper에서 발전하였으며, 분산환경에서의 시스템 병목 현상 파악
+    - Collector, Query Service, Databasem WebUI로 구성
+    - **span**
+      - 하나의 요청에 사용되는 작업의 단위
+      - 64 bit unique ID
+    _ **Trace**
+      - 트리 구조로 이뤄진 Span 셋
+      - 하나의 요청에 대한 같은 Trace ID 발급
+    
+  * Spring Cloud Sleuth
+    - 스프링 부트 애플리케이션을 Zipkin과 연동 (Zipkin에 데이터 전달)
+    - 요청 값에 따른 Trace ID, Span ID 부여
+    - Trace와 Span Ids를 로그에 추가 가능
+      - servlet filter
+      - rest template
+      - scheduled actions
+      - message channels
+      - feign client
+
+  * Spring Cloud Sleuth + Zipkin
+  * Zipkin 기본 포트 9411번
+
+### Turbine Server
+  * 마이크로서비스에 설치된 Hystrix 클라이언트의 스트림을 통합
+    - 마이크로서비스에서 생성되는 Hystrix 클라이언트 스트림 메시지를 터빈 서버로 수집
+  * Hystrix 클라이언트에서 생성하는 스트림을 시각화
+    - Web Dashboard
+
+### Prometheus + Grafana
+  * Prometheus
+    - Metrics를 수집하고 모니터링 및 알람에 사용되는 오픈소스 애플리케이션
+    - 2016년부터 CNCF에서 관리되는 2번쨰 공식 프로젝트
+      - Level DB -> Time Series Database(TSDB)
+    - Pull방식의 구조와 다양한 Metric Exporter 제공
+    - 시계열 DB에 Metrics 저장 -> 조회 가능(Query)
+
+  * Grafana
+    - 데이터 시각화, 모니터링 및 분석을 위한 오픈소스 애플리케이션
+    - 시계열 데이터를 시각화하기 위한 대시보드 제공
+
+  - 프로메테우스에서 /actuator/prometheus로 데이터 수집을 한다
+  - Grafana에서 연동을 통해 시각화를 한다.
+
+###### Prometheus
+  * [prometheus.io] -> Download -> 설치
+  * prometheus.yml 파일 수정 - target 지정
+  * Prometheus 서버 실행 (port: 9090(default))
+  * ./prometheus --config.file=prometheus.yml (Linux/Mac | 윈도우는 exe 실행)  
+
+###### Grafana
+  * [grafana.com] -> Download -> 설치
+  * Grafana 실행
+    - http://127.0.0.1:3000
+    - ID: admin, PW: admin
+  * $./bin/grafana-server web (Linux/mac)
+  * windows는 ${grafana.dir}/bin/grafana-server.exe 실행
+  * Prometheus - Grafana 연동
+
+# 애플리케이션 배포를 위한 Conatainer 가상화
+
+### Virtualization(가상화)
+  * 물리적인 컴퓨터 리소스를 다른 시스템이나 애플리케이션에 사용할 수 있도록 제공
+    - 플랫폼 가상화
+    - 리소스 가상화
+  *  하이퍼바이저(Hypervisor)
+    - Virtual Machine Manager(VMM)
+    - 다수의 운영체제를 동시에 실행하기 위한 논리적 플랫폼
+    - Tpye 1: Native or Bare-metal
+    - Type 2: Hosted  
+### Container Virtualization
+  * OS Virualization
+    - Host OS 위에 Guest OS 전체를 가상화
+    - VMWare, VirtualBox
+    - 자유도가 높으나, 시스템에 부하가 많고 느려짐
+  * Container Virtualization
+    - Host OS가 가진 리소스를 적게 사용하며, 필요한 프로세스 실행
+    - 최소한의 라이브러리와 도구만 포함
+    - Container의 생성 속도가 빠름
+
+### Container Image
+  * Container 실행에 필요한 설정값
+    - **상태값X, Immutable**
+  * Image를 가지고 실체화 -> Container
+
+### Dockerfile
+  * Docker Image를 생성하기 위한 스크립트 파일
+  * 자체 DSL(Domain-Specific Language) 언어 사용 -> 이미지 생성과정 기술
+
+### Docker Desktop
+  * [https://www.docker.com/products/docker-desktop]
+  * Docker 명령어
+  ```sh
+    docker info         # docker 정보
+    docker images ls     # docker 이미지 리스트
+    docker container ls # docker 컨테이너 리스트
+
+    # 컨테이너 실행
+    $ docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
+    -d # detached mode 흔히 말하는 백그라운드 모드
+    -p # 호스트와 컨테이너의 포트를 연결(포워딩)
+    -v # 호스트와 컨테이너의 디렉토리를 연결(마운트)
+    -e # 컨테이너 내에서 사용할 환경변수 설정
+    -name # 컨테이너 이름 설정
+    -rm # 프로세스 종료 시 컨테이너 자동 제거
+    -it # -i와 -t를 동시에 사용한 것으로 터미널 입력을 위한 옵션
+    -link # 컨테이너 연결[컨테이너명:별칭]
+    -exec # 이미지 실행
+    -logs [컨테이너ID|컨테이머명] # 로그 보기
+    # ex)
+    docker run ubuntu:16.04
+  ```
+  * 도커 이미지(도커 허브) : [https://hub.docker.com/]  
+### Docker 실행
+  ```sh
+    # 3306(호스트 포트):3306(컨테이너 포트), --name mysql(이름) mysql:5.7(버전)
+    docker run -d -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true --name mysql mysql:5.7
+    docker exec -it mysql bash
+  ```
+
