@@ -443,6 +443,7 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
   ```sh
     docker info         # docker 정보
     docker images ls     # docker 이미지 리스트
+    docker images -a    # (all) 상세정보 모두보기(deafult hides intermediate images)
     docker container ls # docker 컨테이너 리스트
 
     # 컨테이너 실행
@@ -467,4 +468,65 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
     docker run -d -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true --name mysql mysql:5.7
     docker exec -it mysql bash
   ```
+### Dockerfile for Users Microservice
+  * 도커 이미지 파일 만들기
+  ```Dockerfile
+    FROM openjdk:8-jdk-alpine
+
+    VOLUME /tmp # 가상의 디렉토리
+
+    COPY target/user-ws-0.1.jar user-service.jar # 주의:도커파일과 target의 디렉토리가 같아야함 (앞의 파일을 뒤의 파일로 복사)
+
+    ENTRYPOINT ["java",
+    "-Djava.security.egd=file:/dev/./urandom",
+    "jar",
+    "user-service.jar"]
+  ```
+  ```sh
+    docker build -t username/user-service:1.0 #(-t: --tag, 태그)
+    docker push username/user-service:1.0
+    docker pull username/user-service:1.0
+  ```
+
+### Running MircoServices
+  * IDEA + Local
+  * JAR file + Local
+  * Docker + Local
+***
+  * Docker + AWS EC2
+  * Docker + Docker Swarm Mode + AWS EC2
+  * Docker(CRI-O) + Kubernetes + AWS EC2 (거의 표준)
+
+### Create Bridge Network
+  * Bridge network
+    - $ docker network create --driver bridge [브릿지 이름]
+  * Host network
+    - 네트워크를 호스트로 설정하면 호스트의 네트워크 환경을 그대로 사용
+    - 포트 포워딩 없이 내부 어플리케이션 사용
+  * None network
+    - 네트워크를 사용하지 않음
+    - lo 네트워크만 사용, 외부와 단절
+  * 불필요한 도커 컨테이너 삭제 
+    - docker system prune
+  ```sh
+    $ docker network create ecommerce-network
+    $ docker network ls
+
+    # gateway, subnetmask 설정 (하나의 네트워크에서 컨테이너들을 사용하기 위함)
+    docker network create --gateway 172.18.0.1 --subnet 172.18.0.0/16 ecommerce-network
+  ```
+
+### Run RabbitMQ (Docker)
+  ```sh
+    docker run -d --name rabbitmq --network ecommerce-network \
+    -p 15672:15672 -p 5672:5672 -p 15671:15671 -p 5671:5671 -p 4369:4369 \
+    -e RABBITMQ_DEFAULT_USER=guest \
+    -e RABBITMQ_DEFAULT_PASS=guest rabbitmq:management
+
+    # 이미지가 없는 경우 다운로드 및 실행 동시에 (run)
+    docker run -d --name rabbitmq --network ecommerce-network -p 15672:15672 -p 5672:5672 -p 15671:15671 -p 5671:5671 -p 4369:4369 -e RABBITMQ_DEFAULT_USER=guest -e RABBITMQ_DEFAULT_PASS=guest rabbitmq:management
+  ```
+
+
+
 
