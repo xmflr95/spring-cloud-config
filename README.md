@@ -447,6 +447,7 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
     docker container ls # docker 컨테이너 리스트
 
     # 컨테이너 실행
+    $ docker [start|stop|restart] # 실행 / 중지 / 재실행
     $ docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
     -d # detached mode 흔히 말하는 백그라운드 모드
     -p # 호스트와 컨테이너의 포트를 연결(포워딩)
@@ -458,6 +459,7 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
     -link # 컨테이너 연결[컨테이너명:별칭]
     -exec # 이미지 실행
     -logs [컨테이너ID|컨테이머명] # 로그 보기
+    attach <container name | ID> # 가동중인 컨테이너에 접속
     # ex)
     docker run ubuntu:16.04
   ```
@@ -489,7 +491,7 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
   ```
 
 ### Running MircoServices
-  * IDEA + Local
+  * IDEA(IDE) + Local
   * JAR file + Local
   * Docker + Local
 ***
