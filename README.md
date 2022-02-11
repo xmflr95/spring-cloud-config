@@ -529,6 +529,129 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
     docker run -d --name rabbitmq --network ecommerce-network -p 15672:15672 -p 5672:5672 -p 15671:15671 -p 5671:5671 -p 4369:4369 -e RABBITMQ_DEFAULT_USER=guest -e RABBITMQ_DEFAULT_PASS=guest rabbitmq:management
   ```
 
+### Run Kafja Server
+  * Zookeeper + Kafka Standalone
+    - docker-compose로 실행 (두개를 하나로 묶어서 실행하기 위함)
+    - git clone https://github.com/wurstmeister/kafka-docker
+    - docker-compose-single-broker.yml 수정  
+  ``` sh
+    $ docker -compose -f docker-compose-single-broker.yml up -d
+  ```
 
+### Run Zipkin
+  * [https://zipkin.io/pages/quickstart]
+  ```sh
+    $ docker run -d -p 9411:9411 \
+      --network ecommerce-network \
+      --name zipkin \
+      openzipkin/zipkin
+  ```
 
+### Run Prometheus + Grafana
+  * Prometheus
+    - [https://prometheus.io/docs/prometheus/latest/installation/#using-docker]
+    ```sh
+      $ docker run -d -p 9000:9000 \
+        --network ecommerce-network \ 
+        --name prometheus \
+        -v /path/to/prometheus.yml:/etc/prometheus/prometheus.yml \
+        prom/prometheus
+    ```
+    ```cmd
+      docker run -d -p 9090:9090 ^
+      --network ecommerce-network ^
+      --name prometheus ^
+      -v C:\dev\prometheus-2.33.1.windows-amd64\prometheus.yml:/etc/prometheus/prometheus.yml ^
+      prom/prometheus
+    ```
+  * Grafana
+    - [https://grafana.com/grafana/download?platform=docker]
+    ```sh
+      $ docker run -d -p 3000:3000 \
+        --network ecommerce-network \
+        --name grafana \
+        grafana/grafana
+    ```
 
+### Deployed Services - Docker Container
+  * User-Service
+  ```sh
+    docker run -d --network ecommerce-network \
+    --name user-service \
+    -e "spring.cloud.config.uri=http://config-service:8888" \
+    -e "spring.rabbitmq.host=rabbitmq" \
+    -e "spring.zipkin.base-url=http://zipkin:9411" \
+    -e "eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka/" \
+    -e "logging.file=/api-logs/users-ws.log" \
+    xmflr95/user-service:1.0
+    
+    docker run -d --network ecommerce-network --name user-service -e "spring.cloud.config.uri=http://config-service:8888" -e "spring.rabbitmq.host=rabbitmq" -e "spring.zipkin.base-url=http://zipkin:9411" -e "eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka/" -e "logging.file=/api-logs/users-ws.log" xmflr95/user-service:1.0
+  ```
+  * Order-Service
+  ```sh
+    docker run -d --network ecommerce-network \
+    --name order-service \
+    -e "spring.cloud.config.uri=http://config-service:8888" \
+    -e "spring.rabbitmq.host=rabbitmq" \
+    -e "spring.zipkin.base-url=http://zipkin:9411" \
+    -e "spring.datasource.url=jdbc:mariadb://mariadb:3306/mydb" \
+    -e "eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka/" \
+    -e "logging.file=/api-logs/orders-ws.log" \
+    xmflr95/order-service:1.0
+  ```
+  * Catalog-Service
+  ```sh
+    docker run -d --network ecommerce-network \
+    --name catalog-service \
+    -e "eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka/" \
+    -e "logging.file=/api-logs/catalogs-ws.log" \
+    xmflr95/catalog-service:1.0
+  ```
+
+### Run Microservices
+* 마이크로서비스를 정리하면서 프로파일을 정리하는 방법
+  Developement Enviroment(Local IPs) -> Spring Boot Web Serivces <- Production Enviroment(AWS EC2)
+  ```sh
+    mvn spring-boot:run -Dspring-boot:run.arguments=--spring.profiles.active=production
+    java -Dspring.profiles.active=default XXXXXXXXX.jar
+  ```
+# Appendix: Microservice Architecture 패턴
+### Event Driven Architecture
+  * Monolithic
+    - 단일 데이터베이스
+    - 트랜잭션 처리 -> ACID(Atomicity, Consistency, Isolation, Durable)  
+  * Microservice
+    - 각 서비스마다 독립적인 DB(Polyglot)
+    - API를 통해 접근(JDBC로 DB 직접 접근은 원칙적으로 거부)
+      - 각 서비스가 인증된 API 통신으로 트랜잭션 처리
+    - Atomicity, Consistency -> **Commit** Transaction/**Rollback** Transaction
+    - 트랜잭션을 바로 반영하는 것이 아니라 Pending을 통해 체크 후 
+    정상 상태 메시지를 전달해 peding상태의 요청을 정상으로 처리
+
+### Evnet Sourcing
+  * 데이터의 마지막 상태만 저장하는 것이 아닌, 해당 데이터에 수행된 전체 이력을 기록
+  * 데이터 구조 단순
+  * 데이터의 일관성과 트랜잭션 처리 가능
+  * 데이터 저장소의 개체를 직접 업데이트 하지 않기 때문에, 동시성에 대한 충돌 문제 해결
+  * 도메인 주도 설계(Domain-Driven Design)
+    - Aggregate (데이터 상태값 변경)
+    - Projection (현재 상태값 표현)
+  * 메시지 중심의 비동기 작업 처리
+  * 단점
+    - 모든 이벤트에 대한 복원 -> **스냅샷**
+    - 다양한 데이터 조회 -> **CQRS**
+  
+### CQRS
+  * CQRS(Command and Query Responsibility Segregation)
+  * 명령과 조회의 책임 분리 
+    - 상태를 변경하는 Command
+    - 조회를 담당하는 Query
+
+### Saga Pattern
+  * Application에서 Transaction 처리
+    - Choregraphy, Orchestration
+  * Application이 분리된 경우에는 각각의 Local transaction만 처리
+  * 각 App에 대한 연속적인 Transaction에서 실패할 경우
+    - Rollback 처리 구현 -> **보상 Transaction**
+  * 데이터의 원자성을 보장하지는 않지만, 일관성을 보장
+  
