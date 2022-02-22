@@ -655,3 +655,34 @@ keytool -import -alias trustServer -file trustServer.cer -keystore publicKey.jks
     - Rollback 처리 구현 -> **보상 Transaction**
   * 데이터의 원자성을 보장하지는 않지만, 일관성을 보장
   
+---
+# Logging Setting
+### ElasticSearch 
+기본 PORT : 9200, 9300
+```sh
+curl -XGET 'localhost:9200/_cat/indices?v'
+curl -XPUT 'localhost:9200/customer?pretty'
+curl -XGET 'localhost:9200/_cat/indices?v'
+curl -XGET 'localhost:9200/customer2/_search?pretty'
+curl -XDELETE 'localhost:9200/customer2/info/1?pretty'
+curl -XDELETE 'localhost:9200/customer2?pretty'
+```
+
+### Logstash (로그 수집 & 포맷 수정)
+기본 PORT : 5044 / 9600
+```sh
+  # windows
+  .\bin\logstash.bat -f .\config\logstash.conf
+```
+
+### Kibana (시각화)
+기본 PORT : 5601
+
+### FileBeat (파일 수집)
+spring-boot (log) ↘  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;➡ Logstash (변형) ➡ Elasticsearch ⬅ Kibana  
+filebeat (log)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↗  
+
+#### ELK STACK
+FileBeat => Logstash => Elasticsearch <= Kibana
+ 
